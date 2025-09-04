@@ -1,15 +1,28 @@
-# Paso 1: Usar una imagen base oficial y ligera de Nginx.
-# Nginx es un servidor web de alto rendimiento ideal para servir archivos estáticos.
-FROM nginx:1.25-alpine
+# Dockerfile
+FROM node:18-alpine AS builder
 
-# Paso 2: Copiar todos los archivos de tu aplicación (HTML, TSX, CSS, etc.)
-# al directorio web por defecto de Nginx dentro del contenedor.
-COPY . /usr/share/nginx/html
+WORKDIR /app
 
-# Paso 3: Exponer el puerto 80. Nginx escucha en este puerto por defecto.
+# Copy package files
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built app to nginx
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
 EXPOSE 80
 
-# Paso 4: El comando para iniciar Nginx cuando el contenedor se ejecute.
-# La opción "-g 'daemon off;'" asegura que Nginx se ejecute en primer plano,
-# lo cual es necesario para que el contenedor de Cloud Run se mantenga activo.
 CMD ["nginx", "-g", "daemon off;"]
